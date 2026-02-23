@@ -1,0 +1,133 @@
+name: Build and Release Font
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # Daily at UTC 04:00 (Taiwan 12:00)
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Force build even if no new Iosevka release"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      iosevka_version: ${{ steps.check.outputs.iosevka_version }}
+    steps:
+      - name: Check for new Iosevka release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IOSEVKA_VERSION=$(gh api repos/be5invis/Iosevka/releases/latest --jq '.tag_name')
+          echo "Latest Iosevka version: $IOSEVKA_VERSION"
+          echo "iosevka_version=$IOSEVKA_VERSION" >> $GITHUB_OUTPUT
+
+          if [ "${{ inputs.force_build }}" = "true" ]; then
+            echo "Force build requested"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get our latest release tag (may not exist yet)
+          OUR_LATEST=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name' 2>/dev/null || echo "")
+          echo "Our latest release: $OUR_LATEST"
+
+          if echo "$OUR_LATEST" | grep -qF "$IOSEVKA_VERSION"; then
+            echo "Already built for Iosevka $IOSEVKA_VERSION"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "New Iosevka version detected, triggering build"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout Iosevka source
+        uses: actions/checkout@v4
+        with:
+          repository: be5invis/Iosevka
+          ref: ${{ needs.check.outputs.iosevka_version }}
+          path: iosevka-src
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ttfautohint python3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Copy custom build plan
+        run: cp private-build-plans.toml iosevka-src/
+
+      - name: Install dependencies and build
+        run: |
+          cd iosevka-src
+          npm install
+          npm run build -- contents::IoskeleyCondensed
+          npm run build -- contents::IoskeleyCondensedTerm
+
+      - name: Verify build output
+        run: |
+          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
+            if [ ! -d "iosevka-src/dist/$plan/TTF" ] || [ ! -d "iosevka-src/dist/$plan/WOFF2" ]; then
+              echo "Build output directories for $plan not found!"
+              exit 1
+            fi
+          done
+          echo "All build directories verified."
+
+      - name: Package font files
+        run: |
+          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
+            cd iosevka-src/dist/$plan
+            zip -r ../../../${plan}-TTF-Hinted.zip TTF
+            zip -r ../../../${plan}-TTF-Unhinted.zip TTF-Unhinted
+            zip -r ../../../${plan}-Web.zip WOFF2 WOFF2-Unhinted
+            cd ../../..
+          done
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IOSEVKA_VERSION: ${{ needs.check.outputs.iosevka_version }}
+        run: |
+          TAG="iosevka-${IOSEVKA_VERSION}-$(date +'%Y%m%d')-${{ github.run_number }}"
+          cat > release-notes.md <<EOF
+          Built from [Iosevka ${IOSEVKA_VERSION}](https://github.com/be5invis/Iosevka/releases/tag/${IOSEVKA_VERSION}) with condensed width (500).
+
+          **Ioskeley Condensed** (normal spacing):
+          - \`IoskeleyCondensed-TTF-Hinted.zip\` — with hinting, best for standard-resolution screens
+          - \`IoskeleyCondensed-TTF-Unhinted.zip\` — without hinting, preferred on HiDPI screens
+          - \`IoskeleyCondensed-Web.zip\` — WOFF2 files (hinted + unhinted)
+
+          **Ioskeley Condensed Term** (term spacing):
+          - \`IoskeleyCondensedTerm-TTF-Hinted.zip\` — with hinting, best for standard-resolution screens
+          - \`IoskeleyCondensedTerm-TTF-Unhinted.zip\` — without hinting, preferred on HiDPI screens
+          - \`IoskeleyCondensedTerm-Web.zip\` — WOFF2 files (hinted + unhinted)
+          EOF
+          gh release create "$TAG" \
+            --title "Ioskeley Condensed (Iosevka ${IOSEVKA_VERSION})" \
+            --notes-file release-notes.md \
+            IoskeleyCondensed-TTF-Hinted.zip \
+            IoskeleyCondensed-TTF-Unhinted.zip \
+            IoskeleyCondensed-Web.zip \
+            IoskeleyCondensedTerm-TTF-Hinted.zip \
+            IoskeleyCondensedTerm-TTF-Unhinted.zip \
+            IoskeleyCondensedTerm-Web.zip
