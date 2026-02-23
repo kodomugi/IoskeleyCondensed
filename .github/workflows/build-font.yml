@@ -93,6 +93,11 @@ jobs:
           done
           echo "All build directories verified."
 
+      - name: Normalize file timestamps
+        run: |
+          find iosevka-src/dist -type f \( -name "*.ttf" -o -name "*.woff2" \) \
+            -exec touch -t "$(date +'%Y%m%d')0000.00" {} +
+
       - name: Package font files
         run: |
           for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
