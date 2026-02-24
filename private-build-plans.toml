@@ -135,11 +135,11 @@ shape = "upright"
 menu = "upright"
 css = "normal"
 
-[buildPlans.IoskeleyCondensedTerm.slopes.Oblique]
+[buildPlans.IoskeleyCondensedTerm.slopes.Italic]
 angle = 11.8
-shape = "oblique"
-menu = "oblique"
-css = "oblique"
+shape = "italic"
+menu = "italic"
+css = "italic"
 
 [buildPlans.IoskeleyCondensedTerm.widths.Normal]
 shape = 500
@@ -307,11 +307,11 @@ shape = "upright"
 menu = "upright"
 css = "normal"
 
-[buildPlans.IoskeleyCondensed.slopes.Oblique]
+[buildPlans.IoskeleyCondensed.slopes.Italic]
 angle = 11.8
-shape = "oblique"
-menu = "oblique"
-css = "oblique"
+shape = "italic"
+menu = "italic"
+css = "italic"
 
 [buildPlans.IoskeleyCondensed.widths.Normal]
 shape = 500

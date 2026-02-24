@@ -8,7 +8,7 @@ A condensed (width 500) variant of [Ioskeley Mono](https://github.com/ahatem/Ios
 |---|---|---|
 | Width | 600 (standard) | 500 (condensed) |
 | Spacing | normal | normal + term |
-| Slopes | Upright + Italic | Upright + Oblique |
+| Slopes | Upright + Italic | Upright + Italic |
 | Ligatures | Built-in | Built-in, controllable via `calt` |
 | cv/ss features | Not exported | Exported |
 | Sidebearing (`sb`) | 85 (custom) | Default (CJK friendly) |
@@ -17,7 +17,7 @@ A condensed (width 500) variant of [Ioskeley Mono](https://github.com/ahatem/Ios
 ### Why these changes?
 
 - **Width 500**: Narrower characters, more content per line while maintaining readability.
-- **Oblique instead of Italic**: Berkeley Mono's italic style is closer to oblique (slanted upright forms, no glyph substitution).
+- **Italic**: Uses italic slope for better compatibility with applications that only look for italic fonts. Glyph variants are explicitly pinned, so no unwanted glyph substitution occurs.
 - **Two spacing variants**: "Ioskeley Condensed" for editors (normal, with wide symbols), "Ioskeley Condensed Term" for terminals (narrowed arrow/geometric symbols).
 - **cv/ss exported**: Allows toggling character variants via OpenType features in your editor.
 - **Default sidebearing**: Preserves Iosevka's native 2:1 halfwidth/fullwidth ratio, ensuring CJK (Chinese/Japanese/Korean) characters align correctly in terminals and editors when paired with a CJK fallback font. Custom `sb` values break this ratio, causing misaligned columns in mixed-script text.
