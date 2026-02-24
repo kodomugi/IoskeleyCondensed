@@ -66,7 +66,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ttfautohint python3
+          sudo apt-get install -y ttfautohint python3 python3-pip
+          pip install fonttools uharfbuzz
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -98,13 +99,105 @@ jobs:
           find iosevka-src/dist -type f \( -name "*.ttf" -o -name "*.woff2" \) \
             -exec touch -t "$(date +'%Y%m%d')0000.00" {} +
 
-      - name: Package font files
+      - name: Package unpatched font files
         run: |
           for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
             cd iosevka-src/dist/$plan
             zip -r ../../../${plan}-TTF-Hinted.zip TTF
             zip -r ../../../${plan}-TTF-Unhinted.zip TTF-Unhinted
             zip -r ../../../${plan}-Web.zip WOFF2 WOFF2-Unhinted
+            cd ../../..
+          done
+
+      - name: Download JetBrains Mono
+        run: |
+          JB_VERSION=$(gh api repos/JetBrains/JetBrainsMono/releases/latest --jq '.tag_name')
+          echo "JetBrains Mono version: $JB_VERSION"
+          curl -sL "https://github.com/JetBrains/JetBrainsMono/releases/download/${JB_VERSION}/JetBrainsMono-${JB_VERSION#v}.zip" -o jb-mono.zip
+          unzip -q jb-mono.zip -d jb-mono
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Patch ligatures from JetBrains Mono
+        run: |
+          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
+            for ttf in iosevka-src/dist/$plan/TTF/*.ttf iosevka-src/dist/$plan/TTF-Unhinted/*.ttf; do
+              suffix=$(basename "$ttf" .ttf | sed "s/^${plan}-//")
+              jb_file="jb-mono/fonts/ttf/JetBrainsMono-${suffix}.ttf"
+              if [ ! -f "$jb_file" ]; then
+                echo "ERROR: No matching JetBrains Mono file for $suffix"
+                exit 1
+              fi
+              echo "Patching $(basename "$ttf") with $(basename "$jb_file")"
+              python3 patch-ligatures.py "$ttf" "$jb_file" "$ttf"
+            done
+          done
+
+      - name: Regenerate WOFF2 from patched TTFs
+        run: |
+          python3 -c "
+          import sys, os
+          from fontTools.ttLib import TTFont
+          for plan in ['IoskeleyCondensed', 'IoskeleyCondensedTerm']:
+              for subdir, woff_dir in [('TTF', 'WOFF2'), ('TTF-Unhinted', 'WOFF2-Unhinted')]:
+                  ttf_path = f'iosevka-src/dist/{plan}/{subdir}'
+                  out_path = f'iosevka-src/dist/{plan}/{woff_dir}'
+                  os.makedirs(out_path, exist_ok=True)
+                  for fname in sorted(os.listdir(ttf_path)):
+                      if not fname.endswith('.ttf'):
+                          continue
+                      src = os.path.join(ttf_path, fname)
+                      dst = os.path.join(out_path, fname.replace('.ttf', '.woff2'))
+                      print(f'{src} -> {dst}')
+                      f = TTFont(src)
+                      f.flavor = 'woff2'
+                      f.save(dst)
+          "
+
+      - name: Smoke test patched fonts
+        run: |
+          TEST_FONT=$(ls iosevka-src/dist/IoskeleyCondensed/TTF/*-Regular.ttf | head -1)
+          python3 -c "
+          import sys
+          import uharfbuzz as hb
+
+          with open(sys.argv[1], 'rb') as f:
+              data = f.read()
+          face = hb.Face(data)
+          font = hb.Font(face)
+
+          def shape(text):
+              buf = hb.Buffer()
+              buf.add_str(text)
+              buf.guess_segment_properties()
+              hb.shape(font, buf, {'calt': True})
+              return [i.codepoint for i in buf.glyph_infos]
+
+          failures = []
+          for seq in ['=>','==>','=>>','<==','<=>','<=|','|=>','=<<',
+                      '<<=','>>=','<=<','>=>','<-<','>->','-<<','>>-','<==>']:
+              gids = shape(seq)
+              if len(set(gids)) < 2:
+                  failures.append(seq)
+
+          if failures:
+              print(f'FAILED ligatures: {failures}')
+              sys.exit(1)
+          print(f'All 17 ligatures verified in {sys.argv[1]}')
+          " "$TEST_FONT"
+
+      - name: Normalize patched file timestamps
+        run: |
+          find iosevka-src/dist -type f \( -name "*.ttf" -o -name "*.woff2" \) \
+            -exec touch -t "$(date +'%Y%m%d')0000.00" {} +
+
+      - name: Package patched font files
+        run: |
+          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
+            cd iosevka-src/dist/$plan
+            zip -r ../../../${plan}-JBM-TTF-Hinted.zip TTF
+            zip -r ../../../${plan}-JBM-TTF-Unhinted.zip TTF-Unhinted
+            zip -r ../../../${plan}-JBM-Web.zip WOFF2 WOFF2-Unhinted
             cd ../../..
           done
 
@@ -117,15 +210,23 @@ jobs:
           cat > release-notes.md <<EOF
           Built from [Iosevka ${IOSEVKA_VERSION}](https://github.com/be5invis/Iosevka/releases/tag/${IOSEVKA_VERSION}) with condensed width (500).
 
+          **JBM** variants include 17 arrow ligatures from JetBrains Mono (\`=>  ==>  =>>  <==  <=>  <=|  |=>  =<<  <<=  >>=  <=<  >=>  <-<  >->  -<<  >>-  <==>\`).
+
           **Ioskeley Condensed** (normal spacing):
-          - \`IoskeleyCondensed-TTF-Hinted.zip\` — with hinting, best for standard-resolution screens
-          - \`IoskeleyCondensed-TTF-Unhinted.zip\` — without hinting, preferred on HiDPI screens
-          - \`IoskeleyCondensed-Web.zip\` — WOFF2 files (hinted + unhinted)
+          - \`IoskeleyCondensed-TTF-Hinted.zip\` — hinted TTF
+          - \`IoskeleyCondensed-TTF-Unhinted.zip\` — unhinted TTF
+          - \`IoskeleyCondensed-Web.zip\` — WOFF2
+          - \`IoskeleyCondensed-JBM-TTF-Hinted.zip\` — hinted TTF + JBM ligatures
+          - \`IoskeleyCondensed-JBM-TTF-Unhinted.zip\` — unhinted TTF + JBM ligatures
+          - \`IoskeleyCondensed-JBM-Web.zip\` — WOFF2 + JBM ligatures
 
           **Ioskeley Condensed Term** (term spacing):
-          - \`IoskeleyCondensedTerm-TTF-Hinted.zip\` — with hinting, best for standard-resolution screens
-          - \`IoskeleyCondensedTerm-TTF-Unhinted.zip\` — without hinting, preferred on HiDPI screens
-          - \`IoskeleyCondensedTerm-Web.zip\` — WOFF2 files (hinted + unhinted)
+          - \`IoskeleyCondensedTerm-TTF-Hinted.zip\` — hinted TTF
+          - \`IoskeleyCondensedTerm-TTF-Unhinted.zip\` — unhinted TTF
+          - \`IoskeleyCondensedTerm-Web.zip\` — WOFF2
+          - \`IoskeleyCondensedTerm-JBM-TTF-Hinted.zip\` — hinted TTF + JBM ligatures
+          - \`IoskeleyCondensedTerm-JBM-TTF-Unhinted.zip\` — unhinted TTF + JBM ligatures
+          - \`IoskeleyCondensedTerm-JBM-Web.zip\` — WOFF2 + JBM ligatures
           EOF
           gh release create "$TAG" \
             --title "Ioskeley Condensed (Iosevka ${IOSEVKA_VERSION})" \
@@ -133,6 +234,12 @@ jobs:
             IoskeleyCondensed-TTF-Hinted.zip \
             IoskeleyCondensed-TTF-Unhinted.zip \
             IoskeleyCondensed-Web.zip \
+            IoskeleyCondensed-JBM-TTF-Hinted.zip \
+            IoskeleyCondensed-JBM-TTF-Unhinted.zip \
+            IoskeleyCondensed-JBM-Web.zip \
             IoskeleyCondensedTerm-TTF-Hinted.zip \
             IoskeleyCondensedTerm-TTF-Unhinted.zip \
-            IoskeleyCondensedTerm-Web.zip
+            IoskeleyCondensedTerm-Web.zip \
+            IoskeleyCondensedTerm-JBM-TTF-Hinted.zip \
+            IoskeleyCondensedTerm-JBM-TTF-Unhinted.zip \
+            IoskeleyCondensedTerm-JBM-Web.zip
