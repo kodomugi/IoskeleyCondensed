@@ -24,7 +24,7 @@ A condensed (width 500) variant of [Ioskeley Mono](https://github.com/ahatem/Ios
 
 ## Ligatures
 
-Iosevka's built-in ligatures lack arrow-style ligatures found in Berkeley Mono. To close this gap, 17 arrow ligatures are transplanted from [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono):
+Iosevka's built-in arrow ligatures differ significantly from those in Berkeley Mono. To better match Berkeley Mono's style, 17 arrow ligatures are transplanted from [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono):
 
 ```
 =>   ==>   =>>   =<<
