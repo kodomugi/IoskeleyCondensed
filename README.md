@@ -9,7 +9,7 @@ A condensed (width 500) variant of [Ioskeley Mono](https://github.com/ahatem/Ios
 | Width | 600 (standard) | 500 (condensed) |
 | Spacing | normal | normal + term |
 | Slopes | Upright + Italic | Upright + Italic |
-| Ligatures | Built-in | Built-in + [JetBrains Mono arrow ligatures](#ligatures), controllable via `calt` |
+| Ligatures | Built-in | Built-in (Iosevka) or [full JetBrains Mono ligatures](#ligatures) (JBM variant), controllable via `calt` |
 | cv/ss features | Not exported | Exported |
 | Sidebearing (`sb`) | 85 (custom) | Default (CJK friendly) |
 | Metric override | Full custom | Custom (without `sb`) |
@@ -24,18 +24,18 @@ A condensed (width 500) variant of [Ioskeley Mono](https://github.com/ahatem/Ios
 
 ## Ligatures
 
-Iosevka's built-in arrow ligatures differ significantly from those in Berkeley Mono. To better match Berkeley Mono's style, 17 arrow ligatures are transplanted from [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono):
+The **JBM** variants (`Ioskeley Condensed JBM`, `Ioskeley Condensed Term JBM`) use JetBrains Mono's full ligature set (~141 ligatures), transplanted via the `calt` OpenType feature. This includes arrows, comparisons, logical operators, comments, and more:
 
 ```
-=>   ==>   =>>   =<<
-<==  <=>   <=<   <=|   <==>
-<<=  <-<
->=>  >>=   >->   >>-
-|=>
--<<
+=>  ->  <-  ==>  <==  <=>  <==>  ...
+==  !=  <=  >=  ===  !==  ...
+||  &&  //  /*  */  <!--  -->  ...
+::  ..  ...  ??  ?.  ++  --  >>>  <<<  ...
 ```
 
-Overlong sequences like `===>`, `==>>`, and `=>>>` are blocked from ligating, matching Berkeley Mono's behavior.
+The standard variants (`Ioskeley Condensed`, `Ioskeley Condensed Term`) retain Iosevka's built-in ligatures unchanged.
+
+JBM variants use a separate font family name, so both can be installed side by side.
 
 ## Installation
 
@@ -46,15 +46,15 @@ Download from the [Releases](../../releases) page.
 | `IoskeleyCondensed-TTF-Hinted.zip` | Normal spacing, hinted TTF |
 | `IoskeleyCondensed-TTF-Unhinted.zip` | Normal spacing, unhinted TTF |
 | `IoskeleyCondensed-Web.zip` | Normal spacing, WOFF2 |
-| `IoskeleyCondensed-JBM-TTF-Hinted.zip` | Normal spacing, hinted TTF + JBM ligatures |
-| `IoskeleyCondensed-JBM-TTF-Unhinted.zip` | Normal spacing, unhinted TTF + JBM ligatures |
-| `IoskeleyCondensed-JBM-Web.zip` | Normal spacing, WOFF2 + JBM ligatures |
+| `IoskeleyCondensed-JBM-TTF-Hinted.zip` | Normal spacing, hinted TTF + JBM ligatures (family: "Ioskeley Condensed JBM") |
+| `IoskeleyCondensed-JBM-TTF-Unhinted.zip` | Normal spacing, unhinted TTF + JBM ligatures (family: "Ioskeley Condensed JBM") |
+| `IoskeleyCondensed-JBM-Web.zip` | Normal spacing, WOFF2 + JBM ligatures (family: "Ioskeley Condensed JBM") |
 | `IoskeleyCondensedTerm-TTF-Hinted.zip` | Term spacing, hinted TTF |
 | `IoskeleyCondensedTerm-TTF-Unhinted.zip` | Term spacing, unhinted TTF |
 | `IoskeleyCondensedTerm-Web.zip` | Term spacing, WOFF2 |
-| `IoskeleyCondensedTerm-JBM-TTF-Hinted.zip` | Term spacing, hinted TTF + JBM ligatures |
-| `IoskeleyCondensedTerm-JBM-TTF-Unhinted.zip` | Term spacing, unhinted TTF + JBM ligatures |
-| `IoskeleyCondensedTerm-JBM-Web.zip` | Term spacing, WOFF2 + JBM ligatures |
+| `IoskeleyCondensedTerm-JBM-TTF-Hinted.zip` | Term spacing, hinted TTF + JBM ligatures (family: "Ioskeley Condensed Term JBM") |
+| `IoskeleyCondensedTerm-JBM-TTF-Unhinted.zip` | Term spacing, unhinted TTF + JBM ligatures (family: "Ioskeley Condensed Term JBM") |
+| `IoskeleyCondensedTerm-JBM-Web.zip` | Term spacing, WOFF2 + JBM ligatures (family: "Ioskeley Condensed Term JBM") |
 
 **Hinted** is recommended for standard-resolution screens. **Unhinted** is preferred on HiDPI displays.
 

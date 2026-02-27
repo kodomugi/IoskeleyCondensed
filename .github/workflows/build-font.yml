@@ -83,31 +83,18 @@ jobs:
           npm install
           npm run build -- contents::IoskeleyCondensed
           npm run build -- contents::IoskeleyCondensedTerm
+          npm run build -- contents::IoskeleyCondensedJBM
+          npm run build -- contents::IoskeleyCondensedTermJBM
 
       - name: Verify build output
         run: |
-          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
+          for plan in IoskeleyCondensed IoskeleyCondensedTerm IoskeleyCondensedJBM IoskeleyCondensedTermJBM; do
             if [ ! -d "iosevka-src/dist/$plan/TTF" ] || [ ! -d "iosevka-src/dist/$plan/WOFF2" ]; then
               echo "Build output directories for $plan not found!"
               exit 1
             fi
           done
           echo "All build directories verified."
-
-      - name: Normalize file timestamps
-        run: |
-          find iosevka-src/dist -type f \( -name "*.ttf" -o -name "*.woff2" \) \
-            -exec touch -t "$(date +'%Y%m%d')0000.00" {} +
-
-      - name: Package unpatched font files
-        run: |
-          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
-            cd iosevka-src/dist/$plan
-            zip -r ../../../${plan}-TTF-Hinted.zip TTF
-            zip -r ../../../${plan}-TTF-Unhinted.zip TTF-Unhinted
-            zip -r ../../../${plan}-Web.zip WOFF2 WOFF2-Unhinted
-            cd ../../..
-          done
 
       - name: Download JetBrains Mono
         run: |
@@ -118,9 +105,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Patch ligatures from JetBrains Mono
+      - name: Patch JBM ligatures into noLigation builds
         run: |
-          for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
+          for plan in IoskeleyCondensedJBM IoskeleyCondensedTermJBM; do
             for ttf in iosevka-src/dist/$plan/TTF/*.ttf iosevka-src/dist/$plan/TTF-Unhinted/*.ttf; do
               suffix=$(basename "$ttf" .ttf | sed "s/^${plan}-//")
               jb_file="jb-mono/fonts/ttf/JetBrainsMono-${suffix}.ttf"
@@ -133,12 +120,12 @@ jobs:
             done
           done
 
-      - name: Regenerate WOFF2 from patched TTFs
+      - name: Regenerate WOFF2 for JBM builds
         run: |
           python3 -c "
           import sys, os
           from fontTools.ttLib import TTFont
-          for plan in ['IoskeleyCondensed', 'IoskeleyCondensedTerm']:
+          for plan in ['IoskeleyCondensedJBM', 'IoskeleyCondensedTermJBM']:
               for subdir, woff_dir in [('TTF', 'WOFF2'), ('TTF-Unhinted', 'WOFF2-Unhinted')]:
                   ttf_path = f'iosevka-src/dist/{plan}/{subdir}'
                   out_path = f'iosevka-src/dist/{plan}/{woff_dir}'
@@ -154,9 +141,9 @@ jobs:
                       f.save(dst)
           "
 
-      - name: Smoke test patched fonts
+      - name: Smoke test JBM ligatures
         run: |
-          TEST_FONT=$(ls iosevka-src/dist/IoskeleyCondensed/TTF/*-Regular.ttf | head -1)
+          TEST_FONT=$(ls iosevka-src/dist/IoskeleyCondensedJBM/TTF/*-Regular.ttf | head -1)
           python3 -c "
           import sys
           import uharfbuzz as hb
@@ -166,38 +153,48 @@ jobs:
           face = hb.Face(data)
           font = hb.Font(face)
 
-          def shape(text):
+          def shape(text, features=None):
               buf = hb.Buffer()
               buf.add_str(text)
               buf.guess_segment_properties()
-              hb.shape(font, buf, {'calt': True})
+              hb.shape(font, buf, features or {})
               return [i.codepoint for i in buf.glyph_infos]
 
           failures = []
-          for seq in ['=>','==>','=>>','<==','<=>','<=|','|=>','=<<',
-                      '<<=','>>=','<=<','>=>','<-<','>->','-<<','>>-','<==>']:
-              gids = shape(seq)
-              if len(set(gids)) < 2:
+          for seq in ['=>','->','<-','!=','==','<=','>=','||','&&',
+                      '==>','<==','<=>','<==>']:
+              on = shape(seq, {'calt': True})
+              off = shape(seq, {'calt': False})
+              if on == off:
                   failures.append(seq)
 
           if failures:
               print(f'FAILED ligatures: {failures}')
               sys.exit(1)
-          print(f'All 17 ligatures verified in {sys.argv[1]}')
+          print(f'All tested ligatures verified in {sys.argv[1]}')
           " "$TEST_FONT"
 
-      - name: Normalize patched file timestamps
+      - name: Normalize file timestamps
         run: |
           find iosevka-src/dist -type f \( -name "*.ttf" -o -name "*.woff2" \) \
             -exec touch -t "$(date +'%Y%m%d')0000.00" {} +
 
-      - name: Package patched font files
+      - name: Package font files
         run: |
           for plan in IoskeleyCondensed IoskeleyCondensedTerm; do
             cd iosevka-src/dist/$plan
-            zip -r ../../../${plan}-JBM-TTF-Hinted.zip TTF
-            zip -r ../../../${plan}-JBM-TTF-Unhinted.zip TTF-Unhinted
-            zip -r ../../../${plan}-JBM-Web.zip WOFF2 WOFF2-Unhinted
+            zip -r ../../../${plan}-TTF-Hinted.zip TTF
+            zip -r ../../../${plan}-TTF-Unhinted.zip TTF-Unhinted
+            zip -r ../../../${plan}-Web.zip WOFF2 WOFF2-Unhinted
+            cd ../../..
+          done
+          for plan in IoskeleyCondensedJBM IoskeleyCondensedTermJBM; do
+            # Strip "JBM" from the zip name to match existing naming convention
+            base=${plan/JBM/}
+            cd iosevka-src/dist/$plan
+            zip -r ../../../${base}-JBM-TTF-Hinted.zip TTF
+            zip -r ../../../${base}-JBM-TTF-Unhinted.zip TTF-Unhinted
+            zip -r ../../../${base}-JBM-Web.zip WOFF2 WOFF2-Unhinted
             cd ../../..
           done
 
@@ -210,23 +207,23 @@ jobs:
           cat > release-notes.md <<EOF
           Built from [Iosevka ${IOSEVKA_VERSION}](https://github.com/be5invis/Iosevka/releases/tag/${IOSEVKA_VERSION}) with condensed width (500).
 
-          **JBM** variants include 17 arrow ligatures from JetBrains Mono (\`=>  ==>  =>>  <==  <=>  <=|  |=>  =<<  <<=  >>=  <=<  >=>  <-<  >->  -<<  >>-  <==>\`).
+          **JBM** variants use JetBrains Mono's full ligature set (~141 ligatures) with a separate font family name, so both variants can be installed side by side.
 
-          **Ioskeley Condensed** (normal spacing):
+          **Ioskeley Condensed** (normal spacing — family: "Ioskeley Condensed"):
           - \`IoskeleyCondensed-TTF-Hinted.zip\` — hinted TTF
           - \`IoskeleyCondensed-TTF-Unhinted.zip\` — unhinted TTF
           - \`IoskeleyCondensed-Web.zip\` — WOFF2
-          - \`IoskeleyCondensed-JBM-TTF-Hinted.zip\` — hinted TTF + JBM ligatures
-          - \`IoskeleyCondensed-JBM-TTF-Unhinted.zip\` — unhinted TTF + JBM ligatures
-          - \`IoskeleyCondensed-JBM-Web.zip\` — WOFF2 + JBM ligatures
+          - \`IoskeleyCondensed-JBM-TTF-Hinted.zip\` — hinted TTF + JBM ligatures (family: "Ioskeley Condensed JBM")
+          - \`IoskeleyCondensed-JBM-TTF-Unhinted.zip\` — unhinted TTF + JBM ligatures (family: "Ioskeley Condensed JBM")
+          - \`IoskeleyCondensed-JBM-Web.zip\` — WOFF2 + JBM ligatures (family: "Ioskeley Condensed JBM")
 
-          **Ioskeley Condensed Term** (term spacing):
+          **Ioskeley Condensed Term** (term spacing — family: "Ioskeley Condensed Term"):
           - \`IoskeleyCondensedTerm-TTF-Hinted.zip\` — hinted TTF
           - \`IoskeleyCondensedTerm-TTF-Unhinted.zip\` — unhinted TTF
           - \`IoskeleyCondensedTerm-Web.zip\` — WOFF2
-          - \`IoskeleyCondensedTerm-JBM-TTF-Hinted.zip\` — hinted TTF + JBM ligatures
-          - \`IoskeleyCondensedTerm-JBM-TTF-Unhinted.zip\` — unhinted TTF + JBM ligatures
-          - \`IoskeleyCondensedTerm-JBM-Web.zip\` — WOFF2 + JBM ligatures
+          - \`IoskeleyCondensedTerm-JBM-TTF-Hinted.zip\` — hinted TTF + JBM ligatures (family: "Ioskeley Condensed Term JBM")
+          - \`IoskeleyCondensedTerm-JBM-TTF-Unhinted.zip\` — unhinted TTF + JBM ligatures (family: "Ioskeley Condensed Term JBM")
+          - \`IoskeleyCondensedTerm-JBM-Web.zip\` — WOFF2 + JBM ligatures (family: "Ioskeley Condensed Term JBM")
           EOF
           gh release create "$TAG" \
             --title "Ioskeley Condensed (Iosevka ${IOSEVKA_VERSION})" \
