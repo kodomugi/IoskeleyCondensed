@@ -207,7 +207,7 @@ jobs:
           cat > release-notes.md <<EOF
           Built from [Iosevka ${IOSEVKA_VERSION}](https://github.com/be5invis/Iosevka/releases/tag/${IOSEVKA_VERSION}) with condensed width (500).
 
-          **JBM** variants use JetBrains Mono's full ligature set (~141 ligatures) with a separate font family name, so both variants can be installed side by side.
+          **JBM** variants use JetBrains Mono's full ligature set (~153 ligatures) with a separate font family name, so both variants can be installed side by side.
 
           **Ioskeley Condensed** (normal spacing — family: "Ioskeley Condensed"):
           - \`IoskeleyCondensed-TTF-Hinted.zip\` — hinted TTF

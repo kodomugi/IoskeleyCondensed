@@ -4,7 +4,7 @@ Patch ligatures from JetBrains Mono into Ioskeley Condensed.
 Transplants JetBrains Mono's full calt (ligature) feature into an
 Iosevka-built font compiled with noLigation=true. All referenced glyphs
 and the complete set of calt lookups are copied from JBM, giving the
-target font JBM's entire ligature set (~141 ligatures).
+target font JBM's entire ligature set (~153 ligatures).
 
 Usage:
     python patch-ligatures.py <iosevka.ttf> <jetbrains-mono.ttf> <output.ttf>

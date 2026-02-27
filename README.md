@@ -24,7 +24,7 @@ A condensed (width 500) variant of [Ioskeley Mono](https://github.com/ahatem/Ios
 
 ## Ligatures
 
-The **JBM** variants (`Ioskeley Condensed JBM`, `Ioskeley Condensed Term JBM`) use JetBrains Mono's full ligature set (~141 ligatures), transplanted via the `calt` OpenType feature. This includes arrows, comparisons, logical operators, comments, and more:
+The **JBM** variants (`Ioskeley Condensed JBM`, `Ioskeley Condensed Term JBM`) use JetBrains Mono's full ligature set (~153 ligatures), transplanted via the `calt` OpenType feature. This includes arrows, comparisons, logical operators, comments, and more:
 
 ```
 =>  ->  <-  ==>  <==  <=>  <==>  ...

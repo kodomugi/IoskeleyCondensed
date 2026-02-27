@@ -22,7 +22,7 @@ The non-JBM variants (`IoskeleyCondensed`, `IoskeleyCondensedTerm`) retain Iosev
 
 ## Scope
 
-Full JetBrains Mono ligature set (~141 ligatures), including:
+Full JetBrains Mono ligature set (~153 ligatures), including:
 
 | Category | Examples |
 |----------|----------|
